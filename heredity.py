@@ -44,6 +44,8 @@ def main():
         sys.exit("Usage: python heredity.py data.csv")
     people = load_data(sys.argv[1])
 
+  
+
     # Keep track of gene and trait probabilities for each person
     probabilities = {
         person: {
@@ -139,6 +141,71 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
+
+    transfer_table = {
+                    0: {    0: 1 - PROBS["mutation"],
+                            1: 0 + PROBS["mutation"]
+                        },
+                    1: {    0: 0.5,
+                            1: 0.5
+                        },
+                    2: {    0: 0 + PROBS["mutation"],
+                            1: 1 - PROBS["mutation"]
+                        }
+                }
+        
+        
+    #calculate 1 gene list
+    work_dict_first = {}
+    work_dict_second = {}
+    for person in people:
+        person_gene = 0
+        person_trait = False
+        #check list 
+        if person in one_gene:
+            person_gene = 1
+        elif person in two_genes: 
+            person_gene = 2
+       
+            
+     
+        if person in have_trait:
+            person_trait = True
+        
+        if people.get(person).get("mother") is None:
+            work_dict_first.update({person : ( person_gene, person_trait, PROBS.get("gene")[person_gene] * PROBS.get("trait")[person_gene][person_trait]  )})
+        else:
+            pont = PROBS.get("trait")[person_gene][person_trait]
+            work_dict_second.update({person : ( person_gene, person_trait,  pont )})
+
+
+        
+    for person in work_dict_second:
+        get_gene = 0  #get gene probability
+        if (people.get(person).get("mother") in work_dict_first.keys()) and (people.get(person).get("father") in work_dict_first.keys()):
+            mother_genes = work_dict_first.get(people.get(person).get("mother"))[0]
+            father_genes = work_dict_first.get(people.get(person).get("father"))[0]
+            child_genes = work_dict_second.get(person)[0]
+            if child_genes == 0:
+                get_gene = transfer_table[mother_genes][0] * transfer_table[father_genes][0] 
+            elif child_genes == 1:
+                get_gene = transfer_table[mother_genes][1] * transfer_table[father_genes][0] + transfer_table[mother_genes][0] * transfer_table[father_genes][1]
+            else: 
+                get_gene = transfer_table[mother_genes][1] * transfer_table[father_genes][1] 
+            
+            work_dict_first.update({person : (child_genes, work_dict_second.get(person)[1] , work_dict_second.get(person)[2] * get_gene)})
+            
+
+
+    joint_prob = 1
+    for person in work_dict_first:
+        joint_prob = joint_prob * work_dict_first.get(person)[2]
+
+    
+       
+    return joint_prob
+
+
     raise NotImplementedError
 
 
@@ -149,6 +216,28 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
+
+    for person in probabilities:
+        person_genes = 0
+        person_trait = False
+        
+        if person in one_gene:
+            person_genes = 1
+        elif person in two_genes:
+            person_genes = 2
+
+        if person in have_trait:
+            person_trait = True
+
+          
+        probabilities[person]["gene"][person_genes] = p + probabilities[person]["gene"][person_genes]
+         
+        probabilities[person]["trait"][person_trait] = p + probabilities[person]["trait"][person_trait]
+       
+
+        
+
+    return
     raise NotImplementedError
 
 
@@ -157,6 +246,24 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
+    for person in probabilities:
+        #normalize gene distribution:
+        val0 = probabilities[person]["gene"][0]
+        val1 = probabilities[person]["gene"][1]
+        val2 = probabilities[person]["gene"][2]
+
+        probabilities[person]["gene"][0] = round(val0 / (val0 + val1 + val2),4)
+        probabilities[person]["gene"][1] = round(val1 / (val0 + val1 + val2),4)
+        probabilities[person]["gene"][2] = round(val2 / (val0 + val1 + val2),4)
+
+        #normalize trait distribution:
+        valTrue = probabilities[person]["trait"][True]
+        valFalse = probabilities[person]["trait"][False]
+        probabilities[person]["trait"][True] = round(valTrue / (valFalse + valTrue),4)
+        probabilities[person]["trait"][False] = round(valFalse / (valFalse + valTrue),4)
+
+    
+    return
     raise NotImplementedError
 
 
